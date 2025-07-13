@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>XO Game - Easy, Medium, Hard</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      text-align: center;
+      background: linear-gradient(135deg, #f7cac9, #92a8d1);
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      margin: 20px 0;
+      font-size: 2.2em;
+      color: #333;
+      text-shadow: 1px 1px #fff;
+    }
+    .level-buttons button {
+      margin: 5px;
+      padding: 10px 15px;
+      font-size: 1em;
+      background-color: #fff;
+      border: 2px solid #666;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s, transform 0.2s;
+    }
+    .level-buttons button:hover {
+      background-color: #fce38a;
+      transform: scale(1.05);
+    }
+    .game-section {
+      display: none;
+    }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      gap: 10px;
+      justify-content: center;
+      margin-top: 30px;
+    }
+    .cell {
+      width: 100px;
+      height: 100px;
+      background-color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 2em;
+      font-weight: bold;
+      cursor: pointer;
+      border: 3px solid #333;
+      border-radius: 10px;
+      transition: background-color 0.3s;
+    }
+    .cell:hover {
+      background-color: #dcedc1;
+    }
+    .status {
+      margin-top: 20px;
+      font-size: 1.4em;
+      color: #222;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 1em;
+      cursor: pointer;
+      background-color: #00bcd4;
+      border: none;
+      color: black;
+      border-radius: 5px;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #0097a7;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎮 XO Game - Choose Your Level</h1>
+  <div class="level-buttons">
+    <button onclick="startGame('easy')">🌱 Easy</button>
+    <button onclick="startGame('medium')">⚔️ Medium</button>
+    <button onclick="startGame('hard')">💀 Hard</button>
+  </div>
+
+  <div class="game-section" id="gameSection">
+    <div class="board" id="board"></div>
+    <div class="status" id="status"></div>
+    <button onclick="resetGame()">🔄 Restart Game</button>
+    <button onclick="backToMenu()">🏠 Back to Menu</button>
+  </div>
+
+  <script>
+    const player = 'X';
+    const ai = 'O';
+    let board = Array(9).fill('');
+    let difficulty = 'hard';
+    const winPatterns = [
+      [0,1,2], [3,4,5], [6,7,8],
+      [0,3,6], [1,4,7], [2,5,8],
+      [0,4,8], [2,4,6]
+    ];
+
+    const boardElement = document.getElementById('board');
+    const statusElement = document.getElementById('status');
+    const gameSection = document.getElementById('gameSection');
+    const menu = document.querySelector('.level-buttons');
+
+    function renderBoard() {
+      boardElement.innerHTML = '';
+      board.forEach((cell, index) => {
+        const cellEl = document.createElement('div');
+        cellEl.classList.add('cell');
+        cellEl.textContent = cell;
+        cellEl.addEventListener('click', () => makeMove(index));
+        boardElement.appendChild(cellEl);
+      });
+    }
+
+    function startGame(level) {
+      difficulty = level;
+      menu.style.display = 'none';
+      gameSection.style.display = 'block';
+      resetGame();
+    }
+
+    function backToMenu() {
+      gameSection.style.display = 'none';
+      menu.style.display = 'block';
+    }
+
+    function makeMove(index) {
+      if (board[index] || checkWinner(board)) return;
+      board[index] = player;
+      renderBoard();
+      if (checkWinner(board)) {
+        statusElement.textContent = '🎉 You Win!';
+        return;
+      }
+      if (board.every(cell => cell)) {
+        statusElement.textContent = '🤝 It\'s a Draw!';
+        return;
+      }
+      setTimeout(() => {
+        const best = chooseAIMove();
+        board[best] = ai;
+        renderBoard();
+        if (checkWinner(board)) {
+          statusElement.textContent = "🖕HAHA I Win!";
+        } else if (board.every(cell => cell)) {
+          statusElement.textContent = "🤝 It's a Draw!";
+        }
+      }, 300);
+    }
+
+    function chooseAIMove() {
+      let empty = board.map((v, i) => v === '' ? i : null).filter(v => v !== null);
+      if (difficulty === 'easy') {
+        return empty[Math.floor(Math.random() * empty.length)];
+      } else if (difficulty === 'medium') {
+        return Math.random() < 0.6 ? bestMove() : empty[Math.floor(Math.random() * empty.length)];
+      } else {
+        return bestMove();
+      }
+    }
+
+    function checkWinner(b) {
+      return winPatterns.some(pattern =>
+        pattern.every(index => b[index] && b[index] === b[pattern[0]])
+      );
+    }
+
+    function bestMove() {
+      let bestScore = -Infinity;
+      let move;
+      for (let i = 0; i < 9; i++) {
+        if (board[i] === '') {
+          board[i] = ai;
+          let score = minimax(board, 0, false);
+          board[i] = '';
+          if (score > bestScore) {
+            bestScore = score;
+            move = i;
+          }
+        }
+      }
+      return move;
+    }
+
+    function minimax(b, depth, isMaximizing) {
+      if (checkWinner(b)) return isMaximizing ? -1 : 1;
+      if (b.every(cell => cell)) return 0;
+
+      if (isMaximizing) {
+        let best = -Infinity;
+        for (let i = 0; i < 9; i++) {
+          if (b[i] === '') {
+            b[i] = ai;
+            let score = minimax(b, depth + 1, false);
+            b[i] = '';
+            best = Math.max(score, best);
+          }
+        }
+        return best;
+      } else {
+        let best = Infinity;
+        for (let i = 0; i < 9; i++) {
+          if (b[i] === '') {
+            b[i] = player;
+            let score = minimax(b, depth + 1, true);
+            b[i] = '';
+            best = Math.min(score, best);
+          }
+        }
+        return best;
+      }
+    }
+
+    function resetGame() {
+      board = Array(9).fill('');
+      statusElement.textContent = '';
+      renderBoard();
+    }
+  </script>
+</body>
+</html>
